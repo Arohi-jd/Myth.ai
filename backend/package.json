@@ -7,15 +7,23 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "build": "echo 'Build script not required for Node.js'"
+    "build": "echo 'Build script not required for Node.js'",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
+    "@google/generative-ai": "^0.24.1",
+    "@prisma/client": "^6.19.2",
+    "@supabase/supabase-js": "^2.98.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "prisma": "^6.19.2"
+  }
 }
