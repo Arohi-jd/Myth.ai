@@ -1,0 +1,278 @@
+/* ===== Gita Path Page ===== */
+.gita-page {
+  margin-top: 60px;
+  min-height: calc(100vh - 60px);
+  padding: 2.5rem 2rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.gita-page-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.gita-page-header h1 {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.gita-page-header p {
+  font-family: var(--font-sacred);
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  margin: 0.4rem 0 0;
+  font-style: italic;
+}
+
+/* Layout */
+.gita-layout {
+  display: flex;
+  gap: 1.5rem;
+}
+
+/* Chapter Nav */
+.gita-chapters {
+  width: 260px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+.gita-chapters h3 {
+  font-family: var(--font-heading);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 0 0 0.8rem;
+  padding-left: 0.6rem;
+}
+
+.chapter-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+  transition: all 0.25s ease;
+}
+
+.chapter-btn:hover {
+  background: rgba(212, 168, 67, 0.06);
+  border-color: var(--border-subtle);
+  box-shadow: none;
+}
+
+.chapter-btn.active {
+  background: rgba(212, 168, 67, 0.1);
+  border-color: var(--gold-dim);
+  color: var(--gold-light);
+}
+
+.chapter-num {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: rgba(10, 14, 26, 0.5);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--gold-dim);
+  flex-shrink: 0;
+}
+
+.chapter-btn.active .chapter-num {
+  background: rgba(212, 168, 67, 0.15);
+  color: var(--gold);
+}
+
+.chapter-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chapter-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.chapter-sanskrit {
+  font-family: var(--font-sacred);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.chapter-arrow {
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chapter-btn:hover .chapter-arrow,
+.chapter-btn.active .chapter-arrow {
+  opacity: 1;
+}
+
+/* Content */
+.gita-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.gita-content-header h2 {
+  font-family: var(--font-heading);
+  font-size: 1.3rem;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.gita-sanskrit-title {
+  font-family: var(--font-sacred);
+  font-size: 0.9rem;
+  color: var(--gold-dim);
+  font-style: italic;
+}
+
+.gita-chapter-summary {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0.8rem 0 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Shloka */
+.shloka-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.shloka-card {
+  padding: 1.4rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(19, 27, 46, 0.4);
+  transition: border-color 0.3s ease;
+}
+
+.shloka-card:hover {
+  border-color: var(--gold-dim);
+}
+
+.shloka-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.shloka-number {
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  color: var(--peacock-light);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.shloka-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.shloka-action {
+  padding: 0.3rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: none;
+  color: var(--text-dim);
+}
+
+.shloka-action:hover {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+  box-shadow: none;
+}
+
+.shloka-action.bookmarked {
+  color: var(--gold);
+  background: rgba(212, 168, 67, 0.1);
+}
+
+.shloka-sanskrit {
+  font-size: 1.15rem;
+  color: var(--gold);
+  line-height: 1.8;
+  margin: 0 0 0.8rem;
+  white-space: pre-line;
+  font-family: var(--font-sacred);
+}
+
+.shloka-transliteration {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+  font-style: italic;
+  margin: 0 0 0.8rem;
+  white-space: pre-line;
+}
+
+.shloka-meaning {
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  line-height: 1.65;
+  margin: 0;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .gita-layout {
+    flex-direction: column;
+  }
+
+  .gita-chapters {
+    width: 100%;
+    position: static;
+    max-height: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .gita-chapters h3 {
+    width: 100%;
+  }
+
+  .chapter-btn {
+    flex: 0 0 auto;
+    padding: 0.5rem 0.8rem;
+  }
+
+  .chapter-meta .chapter-sanskrit,
+  .chapter-arrow {
+    display: none;
+  }
+}

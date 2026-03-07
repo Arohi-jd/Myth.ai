@@ -1,0 +1,273 @@
+/* ===== Deva Cards Page ===== */
+.deva-page {
+  margin-top: 60px;
+  min-height: calc(100vh - 60px);
+  padding: 2.5rem 2rem;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.deva-page-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.deva-page-header h1 {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.deva-page-header p {
+  font-family: var(--font-sacred);
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  margin: 0.4rem 0 0;
+  font-style: italic;
+}
+
+/* Grid */
+.deva-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Card */
+.deva-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(19, 27, 46, 0.5);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  text-align: left;
+  padding: 0;
+  position: relative;
+}
+
+.deva-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--gold-dim);
+  box-shadow: 0 12px 40px rgba(212, 168, 67, 0.12), 0 0 20px rgba(212, 168, 67, 0.06);
+}
+
+.deva-card-image {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  overflow: hidden;
+}
+
+.deva-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.deva-card:hover .deva-card-image img {
+  transform: scale(1.05);
+}
+
+.deva-aura {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center bottom, rgba(212, 168, 67, 0.15) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.deva-card:hover .deva-aura {
+  opacity: 1;
+}
+
+.deva-card-info {
+  padding: 1rem 1.2rem 1.2rem;
+}
+
+.deva-card-info h3 {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--gold-light);
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.deva-tradition {
+  font-size: 0.72rem;
+  color: var(--peacock-light);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+.deva-title {
+  font-family: var(--font-sacred);
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  margin: 0.3rem 0 0;
+  font-style: italic;
+}
+
+/* ===== Modal ===== */
+.deva-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: fadeInUp 0.3s ease;
+}
+
+.deva-modal {
+  width: 100%;
+  max-width: 650px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 2rem;
+  position: relative;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  z-index: 10;
+}
+
+.modal-close:hover {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+  box-shadow: none;
+}
+
+.modal-header {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.modal-portrait {
+  width: 140px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid var(--border-subtle);
+}
+
+.modal-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.modal-info h2 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: var(--gold);
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+.modal-tradition {
+  font-size: 0.7rem;
+  color: var(--peacock-light);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.modal-title {
+  font-family: var(--font-sacred);
+  font-size: 1rem;
+  color: var(--gold-dim);
+  font-style: italic;
+  margin: 0.3rem 0;
+}
+
+.modal-summary {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0.5rem 0 0;
+}
+
+/* Tabs */
+.modal-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 1rem;
+}
+
+.modal-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.6rem 0.8rem;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  background: none;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  font-family: var(--font-body);
+}
+
+.modal-tab:hover {
+  color: var(--gold);
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.modal-tab.active {
+  color: var(--gold);
+  background: rgba(212, 168, 67, 0.08);
+  border-bottom: 2px solid var(--gold);
+}
+
+.tab-content-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.tab-content-list li {
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  background: rgba(10, 14, 26, 0.5);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+@media (max-width: 600px) {
+  .modal-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+}
