@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { Send, RotateCcw, Sparkles } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { Send, RotateCcw } from 'lucide-react'
 import ChakraLoader from '../components/ChakraLoader'
+import { authFetch } from '../utils/authFetch'
 import './ChatPage.css'
 
 interface Message {
@@ -12,7 +14,8 @@ interface ChatPageProps {
   token: string
 }
 
-export default function ChatPage({ token }: ChatPageProps) {
+export default function ChatPage({ token: _token }: ChatPageProps) {
+  const location = useLocation()
   const apiBase = import.meta.env.VITE_API_URL || '/api'
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -33,9 +36,17 @@ export default function ChatPage({ token }: ChatPageProps) {
       {
         role: 'assistant',
         content:
-          '**Welcome, O Seeker of Ancient Wisdom.**\n\nI am Myth.ai, keeper of the sacred stories that have shaped civilizations across millennia.\n\nAsk me of the divine \u2014 the gods of Olympus, the devas of Svarga, the Aesir of Asgard, the Netjeru of Kemet, and countless others.\n\nWhat mystery of the ancient world calls to you?',
+          '**Welcome, O Sadhak of Sanatana Wisdom.**\n\nI am Myth.ai, your guide through the sacred kathas of Bharat — from the Vedas, Upanishads, Ramayana, and Mahabharata to the Puranas.\n\nAsk me about Bhagwan Shiva, Vishnu, Devi, Krishna, Rama, Hanuman, the Devas, Rishis, Avatars, and the timeless path of Dharma and Karma.\n\nWhich divine katha shall we begin today?',
       },
     ])
+    
+    // Handle pre-filled text from navigation state
+    const state = location.state as { prefilledText?: string } | null
+    if (state?.prefilledText) {
+      setInput(state.prefilledText)
+      // Clear the state to prevent re-filling on page refresh
+      window.history.replaceState({}, document.title)
+    }
   }, [])
 
   async function handleSend(e: FormEvent) {
@@ -52,11 +63,10 @@ export default function ChatPage({ token }: ChatPageProps) {
     setLoading(true)
 
     try {
-      const res = await fetch(`${apiBase}/chat`, {
+      const res = await authFetch(`${apiBase}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ message: trimmed }),
       })
@@ -80,9 +90,8 @@ export default function ChatPage({ token }: ChatPageProps) {
   }
 
   async function handleClearHistory() {
-    await fetch(`${apiBase}/chat/history`, {
+    await authFetch(`${apiBase}/chat/history`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
     })
     setMessages([
       {
@@ -121,10 +130,6 @@ export default function ChatPage({ token }: ChatPageProps) {
 
       {/* Chat header */}
       <div className="chat-header">
-        <div className="chat-header-left">
-          <Sparkles size={18} strokeWidth={1.5} className="header-icon" />
-          <span>Vaani \u2014 Divine Discourse</span>
-        </div>
         <button onClick={handleClearHistory} className="btn-new-chat" title="Begin new discourse">
           <RotateCcw size={14} strokeWidth={1.5} />
           <span>New Discourse</span>

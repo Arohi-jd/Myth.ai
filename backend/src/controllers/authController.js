@@ -157,6 +157,57 @@ export async function login(req, res, next) {
   }
 }
 
+export async function refreshSession(req, res, next) {
+  try {
+    const { refresh_token } = req.body;
+
+    if (!refresh_token) {
+      return res.status(400).json({ message: 'refresh_token is required' });
+    }
+
+    const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+
+    if (error) {
+      console.error('Token refresh error:', error);
+      return res.status(401).json({ message: 'Unable to refresh session', details: error.message });
+    }
+
+    if (!data.session) {
+      return res.status(401).json({ message: 'No session returned after refresh' });
+    }
+
+    return res.status(200).json({
+      session: data.session,
+      user: data.user,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function googleCallback(req, res, next) {
+  try {
+    // The frontend already has the tokens from the Supabase OAuth redirect.
+    // This endpoint just syncs the Google user into our own database.
+    const user = req.user; // set by requireAuth middleware
+
+    if (!user) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    await syncUserProfile({
+      supabaseUserId: user.id,
+      email: user.email || '',
+      name: user.user_metadata?.full_name || user.user_metadata?.name || null,
+      updateLastLogin: true,
+    });
+
+    return res.status(200).json({ message: 'Google user synced' });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function me(req, res, next) {
   try {
     const profile = await prisma.user.findUnique({
