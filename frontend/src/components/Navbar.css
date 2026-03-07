@@ -29,6 +29,8 @@
   border: none;
   padding: 0;
   background: none;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .navbar-brand:hover {
@@ -36,9 +38,15 @@
   box-shadow: none;
 }
 
-.chakra-logo {
-  color: var(--gold);
-  animation: chakraSpin 12s linear infinite;
+.brand-logo {
+  object-fit: contain;
+  transition: transform 0.3s ease, filter 0.3s ease;
+  filter: drop-shadow(0 0 8px rgba(212, 168, 67, 0.3));
+}
+
+.navbar-brand:hover .brand-logo {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 12px rgba(212, 168, 67, 0.5));
 }
 
 .brand-text {
@@ -72,6 +80,8 @@
   font-weight: 400;
   font-family: var(--font-body);
   letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
 }

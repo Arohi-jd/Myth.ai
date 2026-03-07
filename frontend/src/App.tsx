@@ -1,16 +1,25 @@
-import { FormEvent, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import Navbar from './components/Navbar'
-import Particles from './components/Particles'
 import ChatPage from './pages/ChatPage'
 import DevaCards from './pages/DevaCards'
 import KathaMandal from './pages/KathaMandal'
 import GitaPath from './pages/GitaPath'
 import Bookmarks from './pages/Bookmarks'
+import { supabase } from './lib/supabase'
 import './App.css'
 
 type Mode = 'login' | 'signup'
-type Page = 'chat' | 'deva' | 'katha' | 'gita' | 'bookmarks'
+
+const TOKEN_STORAGE_KEY = 'mythai_token'
+const REFRESH_TOKEN_STORAGE_KEY = 'mythai_refresh_token'
+const EMAIL_STORAGE_KEY = 'mythai_user_email'
+
+function getStoredValue(key: string) {
+  if (typeof window === 'undefined') return ''
+  return window.localStorage.getItem(key) || ''
+}
 
 function App() {
   const apiBase = useMemo(() => import.meta.env.VITE_API_URL || '/api', [])
@@ -21,10 +30,9 @@ function App() {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
-  const [token, setToken] = useState('')
-  const [userEmail, setUserEmail] = useState('')
+  const [token, setToken] = useState(() => getStoredValue(TOKEN_STORAGE_KEY))
+  const [userEmail, setUserEmail] = useState(() => getStoredValue(EMAIL_STORAGE_KEY))
   const [showPassword, setShowPassword] = useState(false)
-  const [activePage, setActivePage] = useState<Page>('chat')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -63,9 +71,16 @@ function App() {
       if (!accessToken) {
         throw new Error('No access token received')
       }
-      
+
+      const loggedInUserEmail = data?.user?.email || email
+      const refreshToken = data?.session?.refresh_token || ''
       setToken(accessToken)
-      setUserEmail(data?.user?.email || email)
+      setUserEmail(loggedInUserEmail)
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, accessToken)
+      window.localStorage.setItem(EMAIL_STORAGE_KEY, loggedInUserEmail)
+      if (refreshToken) {
+        window.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken)
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Something went wrong'
       setMessage(errorMessage)
@@ -77,73 +92,127 @@ function App() {
   function handleLogout() {
     setToken('')
     setUserEmail('')
+    window.localStorage.removeItem(TOKEN_STORAGE_KEY)
+    window.localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY)
+    window.localStorage.removeItem(EMAIL_STORAGE_KEY)
     setMessage('')
     setEmail('')
     setPassword('')
     setName('')
-    setActivePage('chat')
   }
 
-  function renderPage() {
-    switch (activePage) {
-      case 'chat':
-        return <ChatPage token={token} />
-      case 'deva':
-        return <DevaCards />
-      case 'katha':
-        return <KathaMandal />
-      case 'gita':
-        return <GitaPath />
-      case 'bookmarks':
-        return <Bookmarks />
-      default:
-        return <ChatPage token={token} />
+  async function handleGoogleLogin() {
+    setLoading(true)
+    setMessage('')
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      })
+      if (error) throw error
+      // Supabase will redirect to Google — we don't reach here
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Google sign-in failed')
+      setLoading(false)
     }
   }
+
+  // Handle OAuth callback — Supabase puts tokens in the URL hash
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash || !hash.includes('access_token')) return
+
+    const params = new URLSearchParams(hash.substring(1))
+    const accessToken = params.get('access_token') || ''
+    const refreshToken = params.get('refresh_token') || ''
+
+    if (accessToken) {
+      // Clean the URL
+      window.history.replaceState(null, '', window.location.pathname)
+
+      // Fetch user info from the token
+      supabase.auth.getUser(accessToken).then(({ data, error }) => {
+        if (error || !data.user) {
+          setMessage('Failed to verify Google login')
+          return
+        }
+
+        const loggedInEmail = data.user.email || ''
+        setToken(accessToken)
+        setUserEmail(loggedInEmail)
+        window.localStorage.setItem(TOKEN_STORAGE_KEY, accessToken)
+        window.localStorage.setItem(EMAIL_STORAGE_KEY, loggedInEmail)
+        if (refreshToken) {
+          window.localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken)
+        }
+
+        // Sync user profile to our backend
+        fetch(`${apiBase}/auth/google/callback`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ access_token: accessToken }),
+        }).catch(() => { /* profile sync is best-effort */ })
+      })
+    }
+  }, [])
+
+  // Listen for auth events from authFetch utility
+  // (auto-refresh succeeded → sync state, or refresh failed → force logout)
+  useEffect(() => {
+    const onLogout = () => handleLogout()
+    const onRefreshed = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail?.token) setToken(detail.token)
+    }
+    window.addEventListener('auth-logout', onLogout)
+    window.addEventListener('auth-token-refreshed', onRefreshed)
+    return () => {
+      window.removeEventListener('auth-logout', onLogout)
+      window.removeEventListener('auth-token-refreshed', onRefreshed)
+    }
+  })
 
   // ── Authenticated view ──
   if (token) {
     return (
-      <div className="app-shell">
-        <Particles />
-        <Navbar
-          activePage={activePage}
-          onNavigate={setActivePage}
-          userEmail={userEmail}
-          onLogout={handleLogout}
-        />
-        {renderPage()}
-      </div>
+      <Router>
+        <div className="app-shell">
+          <Navbar
+            userEmail={userEmail}
+            onLogout={handleLogout}
+          />
+          <Routes>
+            <Route path="/" element={<Navigate to="/chat" replace />} />
+            <Route path="/chat" element={<ChatPage token={token} />} />
+            <Route path="/deva-cards" element={<DevaCards />} />
+            <Route path="/katha-mandal" element={<KathaMandal />} />
+            <Route path="/gita-path" element={<GitaPath token={token} />} />
+            <Route path="/bookmarks" element={<Bookmarks token={token} />} />
+            <Route path="*" element={<Navigate to="/chat" replace />} />
+          </Routes>
+        </div>
+      </Router>
     )
   }
 
   // ── Auth page ──
   return (
     <div className="auth-page">
-      <Particles />
-
       <div className="auth-card">
-        {/* Chakra emblem */}
+        {/* Logo emblem */}
         <div className="auth-emblem">
-          <svg viewBox="0 0 80 80" className="auth-chakra-svg">
-            <circle cx="40" cy="40" r="30" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.3" />
-            <circle cx="40" cy="40" r="20" fill="none" stroke="currentColor" strokeWidth="0.8" opacity="0.2" />
-            {[...Array(8)].map((_, i) => {
-              const angle = (i * 45 * Math.PI) / 180
-              return (
-                <line
-                  key={i}
-                  x1={40 + 14 * Math.cos(angle)}
-                  y1={40 + 14 * Math.sin(angle)}
-                  x2={40 + 30 * Math.cos(angle)}
-                  y2={40 + 30 * Math.sin(angle)}
-                  stroke="currentColor"
-                  strokeWidth="0.8"
-                  opacity="0.25"
-                />
-              )
-            })}
-          </svg>
+          <img 
+            src="/images/logo.png" 
+            alt="Myth.ai Logo" 
+            className="auth-logo-img"
+            width="64"
+            height="64"
+          />
         </div>
 
         <h1 className="auth-title">Myth.ai</h1>
@@ -221,6 +290,25 @@ function App() {
             )}
           </button>
         </form>
+
+        <div className="auth-divider">
+          <span>or</span>
+        </div>
+
+        <button
+          type="button"
+          className="google-signin-btn"
+          onClick={handleGoogleLogin}
+          disabled={loading}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+          </svg>
+          Continue with Google
+        </button>
 
         {message && <p className="auth-message">{message}</p>}
 

@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import { ChevronRight, BookmarkPlus, BookmarkCheck, Volume2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { ChevronRight, BookmarkPlus, BookmarkCheck, Volume2, VolumeX, Loader } from 'lucide-react'
+import { authFetch } from '../utils/authFetch'
 import './GitaPath.css'
 
 interface Shloka {
@@ -7,6 +8,7 @@ interface Shloka {
   sanskrit: string
   transliteration: string
   meaning: string
+  audioUrl?: string
 }
 
 interface Chapter {
@@ -14,116 +16,270 @@ interface Chapter {
   name: string
   sanskritName: string
   summary: string
+  verseCount: number
   shlokas: Shloka[]
 }
 
-const CHAPTERS: Chapter[] = [
-  {
-    number: 1,
-    name: 'Arjuna\'s Dilemma',
-    sanskritName: 'Arjuna Vishada Yoga',
-    summary: 'On the battlefield of Kurukshetra, Arjuna sees his kinsmen arrayed against him and is overwhelmed by sorrow and moral confusion.',
-    shlokas: [
-      {
-        number: '1.1',
-        sanskrit: 'धर्मक्षेत्रे कुरुक्षेत्रे समवेता युयुत्सवः ।\nमामकाः पाण्डवाश्चैव किमकुर्वत सञ्जय ॥',
-        transliteration: 'dharma-kshetre kuru-kshetre samavetaa yuyutsavah\nmaamakah paandavaash chaiva kim akurvata sanjaya',
-        meaning: 'Dhritarashtra said: O Sanjaya, assembled on the holy field of Kurukshetra, eager to fight, what did my sons and the sons of Pandu do?',
-      },
-      {
-        number: '1.2',
-        sanskrit: 'दृष्ट्वा तु पाण्डवानीकं व्यूढं दुर्योधनस्तदा ।\nआचार्यमुपसङ्गम्य राजा वचनमब्रवीत् ॥',
-        transliteration: 'drishtva tu paandavaaneekam vyoodham duryodhanastada\naachaaryam upasangamya raajaa vachanam abraveet',
-        meaning: 'Seeing the army of the Pandavas arrayed in battle formation, King Duryodhana approached his teacher Drona and spoke these words.',
-      },
-      {
-        number: '1.47',
-        sanskrit: 'एवमुक्त्वार्जुनः संख्ये रथोपस्थ उपाविशत् ।\nविसृज्य सशरं चापं शोकसंविग्नमानसः ॥',
-        transliteration: 'evam uktvaa arjunah sankhye rathopastha upaavishat\nvisrijya sa-sharam chaapam shoka-samvigna-maanasah',
-        meaning: 'Having spoken thus on the battlefield, Arjuna cast aside his bow and arrows and sat down on the seat of his chariot, his mind overwhelmed with grief.',
-      },
-    ],
-  },
-  {
-    number: 2,
-    name: 'The Yoga of Knowledge',
-    sanskritName: 'Sankhya Yoga',
-    summary: 'Krishna begins his teachings, revealing the immortality of the soul and the path of selfless action.',
-    shlokas: [
-      {
-        number: '2.11',
-        sanskrit: 'अशोच्यानन्वशोचस्त्वं प्रज्ञावादांश्च भाषसे ।\nगतासूनगतासूंश्च नानुशोचन्ति पण्डिताः ॥',
-        transliteration: 'ashochyaan anvashochas tvam prajna-vaadaamsh cha bhaashase\ngataasoon agataasoomsh cha naanushochanti panditaah',
-        meaning: 'You grieve for those who should not be grieved for, yet speak words of wisdom. The truly wise mourn neither for the living nor for the dead.',
-      },
-      {
-        number: '2.20',
-        sanskrit: 'न जायते म्रियते वा कदाचिन्\nनायं भूत्वा भविता वा न भूयः ।\nअजो नित्यः शाश्वतोऽयं पुराणो\nन हन्यते हन्यमाने शरीरे ॥',
-        transliteration: 'na jaayate mriyate vaa kadaachin\nnaayam bhootvaa bhavitaa vaa na bhooyah\najo nityah shaashvato ayam puraano\nna hanyate hanyamaane shareere',
-        meaning: 'The soul is neither born, nor does it ever die. Having come into being once, it never ceases to be. It is unborn, eternal, ever-existing, and primeval. It is not slain when the body is slain.',
-      },
-      {
-        number: '2.47',
-        sanskrit: 'कर्मण्येवाधिकारस्ते मा फलेषु कदाचन ।\nमा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि ॥',
-        transliteration: 'karmanye vaadhikaaraste maa phaleshu kadaachana\nmaa karma-phala-hetur bhoor maa te sango astv akarmani',
-        meaning: 'You have a right to perform your prescribed duty, but you are not entitled to the fruits of your actions. Never consider yourself the cause of the results, and never be attached to inaction.',
-      },
-    ],
-  },
-  {
-    number: 3,
-    name: 'The Yoga of Action',
-    sanskritName: 'Karma Yoga',
-    summary: 'Krishna explains the path of selfless action, performing one\'s duty without attachment to results.',
-    shlokas: [
-      {
-        number: '3.19',
-        sanskrit: 'तस्मादसक्तः सततं कार्यं कर्म समाचर ।\nअसक्तो ह्याचरन्कर्म परमाप्नोति पूरुषः ॥',
-        transliteration: 'tasmaad asaktah satatam kaaryam karma samaachara\nasakto hy aacharan karma param aapnoti poorushah',
-        meaning: 'Therefore, without attachment, always perform your duty efficiently, for by performing action without attachment, one attains the Supreme.',
-      },
-      {
-        number: '3.35',
-        sanskrit: 'श्रेयान्स्वधर्मो विगुणः परधर्मात्स्वनुष्ठितात् ।\nस्वधर्मे निधनं श्रेयः परधर्मो भयावहः ॥',
-        transliteration: 'shreyaan sva-dharmo vigunah para-dharmaat sv-anushthitaat\nsva-dharme nidhanam shreyah para-dharmo bhayaavahah',
-        meaning: 'It is far better to perform one\'s natural prescribed duty, though tinged with faults, than to perform another\'s prescribed duty perfectly. It is better to die performing one\'s own duty, for another\'s path is fraught with danger.',
-      },
-    ],
-  },
-  {
-    number: 11,
-    name: 'The Cosmic Vision',
-    sanskritName: 'Vishvarupa Darshana Yoga',
-    summary: 'Arjuna beholds the terrifying and awe-inspiring universal form of Krishna, containing all of creation.',
-    shlokas: [
-      {
-        number: '11.32',
-        sanskrit: 'कालोऽस्मि लोकक्षयकृत्प्रवृद्धो\nलोकान्समाहर्तुमिह प्रवृत्तः ।',
-        transliteration: 'kaalo asmi loka-kshaya-krit pravriddho\nlokaan samaahartu miha pravrittah',
-        meaning: 'I am mighty Time, the destroyer of all. I have come here to consume all people.',
-      },
-      {
-        number: '11.33',
-        sanskrit: 'तस्मात्त्वमुत्तिष्ठ यशो लभस्व\nजित्वा शत्रून् भुङ्क्ष्व राज्यं समृद्धम् ।',
-        transliteration: 'tasmaat tvam uttishtha yasho labhasva\njitvaa shatroon bhunkshva raajyam samriddham',
-        meaning: 'Therefore, arise and attain glory. Conquer your enemies and enjoy a flourishing kingdom.',
-      },
-    ],
-  },
+interface Bookmark {
+  verseNumber: string
+  chapterNumber: number
+  chapterName: string
+  sanskrit: string
+  transliteration: string
+  meaning: string
+  timestamp: number
+}
+
+const STORAGE_KEYS = {
+  LAST_READ: 'gita_last_read',
+}
+
+interface GitaPathProps {
+  token: string
+}
+
+// Complete chapter metadata
+const CHAPTER_INFO: Omit<Chapter, 'shlokas'>[] = [
+  { number: 1, name: 'Arjuna\'s Dilemma', sanskritName: 'Arjuna Vishada Yoga', summary: 'On the battlefield of Kurukshetra, Arjuna is overwhelmed by sorrow and moral confusion.', verseCount: 47 },
+  { number: 2, name: 'Transcendental Knowledge', sanskritName: 'Sankhya Yoga', summary: 'Krishna reveals the immortality of the soul and the path of selfless action.', verseCount: 72 },
+  { number: 3, name: 'The Yoga of Action', sanskritName: 'Karma Yoga', summary: 'Krishna explains performing one\'s duty without attachment to results.', verseCount: 43 },
+  { number: 4, name: 'Transcendental Knowledge', sanskritName: 'Jnana Karma Sanyasa Yoga', summary: 'The science of self-realization and divine incarnations.', verseCount: 42 },
+  { number: 5, name: 'Karma Sanyasa Yoga', sanskritName: 'Karma Sanyasa Yoga', summary: 'The paths of renunciation and selfless service leading to the same goal.', verseCount: 29 },
+  { number: 6, name: 'The Yoga of Meditation', sanskritName: 'Dhyana Yoga', summary: 'The eightfold path of yoga and meditation for self-realization.', verseCount: 47 },
+  { number: 7, name: 'Knowledge of the Absolute', sanskritName: 'Jnana Vijnana Yoga', summary: 'Krishna reveals His divine nature and manifestations.', verseCount: 30 },
+  { number: 8, name: 'Attaining the Supreme', sanskritName: 'Aksara Brahma Yoga', summary: 'The nature of the Supreme and the path after death.', verseCount: 28 },
+  { number: 9, name: 'The Most Confidential Knowledge', sanskritName: 'Raja Vidya Raja Guhya Yoga', summary: 'The most confidential knowledge about devotional service.', verseCount: 34 },
+  { number: 10, name: 'The Opulence of the Absolute', sanskritName: 'Vibhuti Yoga', summary: 'Krishna describes His divine glories throughout creation.', verseCount: 42 },
+  { number: 11, name: 'The Universal Form', sanskritName: 'Vishvarupa Darshana Yoga', summary: 'Arjuna beholds the awe-inspiring universal form of Krishna.', verseCount: 55 },
+  { number: 12, name: 'The Yoga of Devotion', sanskritName: 'Bhakti Yoga', summary: 'The path of devotion and qualities of a true devotee.', verseCount: 20 },
+  { number: 13, name: 'Nature, the Enjoyer, and Consciousness', sanskritName: 'Kshetra Kshetrajna Vibhaga Yoga', summary: 'The distinction between body (field) and soul (knower).', verseCount: 35 },
+  { number: 14, name: 'The Three Modes of Material Nature', sanskritName: 'Gunatraya Vibhaga Yoga', summary: 'The three modes: goodness, passion, and ignorance.', verseCount: 27 },
+  { number: 15, name: 'The Yoga of the Supreme Person', sanskritName: 'Purushottama Yoga', summary: 'The eternal tree of life and the Supreme Personality.', verseCount: 20 },
+  { number: 16, name: 'The Divine and Demoniac Natures', sanskritName: 'Daivasura Sampad Vibhaga Yoga', summary: 'Divine and demoniac natures and their destinies.', verseCount: 24 },
+  { number: 17, name: 'The Divisions of Faith', sanskritName: 'Shraddhatraya Vibhaga Yoga', summary: 'How the three modes influence faith, worship, and austerities.', verseCount: 28 },
+  { number: 18, name: 'Conclusion - The Perfection of Renunciation', sanskritName: 'Moksha Sanyasa Yoga', summary: 'Complete surrender to the Divine - the ultimate teaching.', verseCount: 78 },
 ]
 
-export default function GitaPath() {
+export default function GitaPath({ token }: GitaPathProps) {
   const [activeChapter, setActiveChapter] = useState(0)
-  const [bookmarked, setBookmarked] = useState<Set<string>>(new Set())
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([])
+  const [playingVerse, setPlayingVerse] = useState<string | null>(null)
+  const [verses, setVerses] = useState<Shloka[]>([])
+  const [loading, setLoading] = useState(false)
+  const apiBase = import.meta.env.VITE_API_URL || '/api'
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const chapter = CHAPTERS[activeChapter]
+  const chapterInfo = CHAPTER_INFO[activeChapter]
 
-  function toggleBookmark(id: string) {
-    setBookmarked((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
+  async function loadBookmarks() {
+    try {
+      const response = await authFetch(`${apiBase}/bookmarks`)
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err?.details || err?.message || 'Failed to load bookmarks')
+      }
+
+      const data = await response.json()
+      setBookmarks(Array.isArray(data) ? data : [])
+    } catch (e) {
+      console.error('Failed to load bookmarks:', e)
+      setBookmarks([])
+    }
+  }
+
+  // Fetch verses for active chapter
+  useEffect(() => {
+    async function fetchVerses() {
+      setLoading(true)
+      try {
+        // Using our own backend API
+        const response = await fetch(`/api/gita/chapters/${chapterInfo.number}/verses`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch verses')
+        }
+        
+        const data = await response.json()
+        
+        // Transform API data to our format
+        const transformedVerses: Shloka[] = data.map((verse: any) => ({
+          number: `${verse.chapterNumber}.${verse.verseNumber}`,
+          sanskrit: verse.sanskrit,
+          transliteration: verse.transliteration,
+          meaning: verse.meaning,
+          audioUrl: verse.audioUrl || null,
+        }))
+
+        setVerses(transformedVerses)
+      } catch (error) {
+        console.error('Error fetching verses:', error)
+        // Fallback: create placeholder verses
+        const placeholderVerses: Shloka[] = Array.from({ length: chapterInfo.verseCount }, (_, i) => ({
+          number: `${chapterInfo.number}.${i + 1}`,
+          sanskrit: 'Loading verse...',
+          transliteration: 'Loading transliteration...',
+          meaning: 'Loading meaning...',
+        }))
+        setVerses(placeholderVerses)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchVerses()
+  }, [activeChapter, chapterInfo.number, chapterInfo.verseCount])
+
+  // Load bookmarks from backend
+  useEffect(() => {
+    loadBookmarks()
+
+    const onBookmarksUpdated = () => loadBookmarks()
+
+    window.addEventListener('bookmarks-updated', onBookmarksUpdated)
+
+    // Load last read position
+    const lastRead = localStorage.getItem(STORAGE_KEYS.LAST_READ)
+    if (lastRead) {
+      try {
+        const { chapterIndex } = JSON.parse(lastRead)
+        if (chapterIndex >= 0 && chapterIndex < CHAPTER_INFO.length) {
+          setActiveChapter(chapterIndex)
+        }
+      } catch (e) {
+        console.error('Failed to load last read position:', e)
+      }
+    }
+
+    return () => {
+      window.removeEventListener('bookmarks-updated', onBookmarksUpdated)
+    }
+  }, [token])
+
+  // Save last read position
+  useEffect(() => {
+    localStorage.setItem(
+      STORAGE_KEYS.LAST_READ,
+      JSON.stringify({
+        chapterIndex: activeChapter,
+        chapterNumber: chapterInfo.number,
+        timestamp: Date.now(),
+      })
+    )
+  }, [activeChapter, chapterInfo.number])
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
+  }, [])
+
+  function isBookmarked(verseNumber: string): boolean {
+    return bookmarks.some(b => b.verseNumber === verseNumber)
+  }
+
+  async function toggleBookmark(shloka: Shloka) {
+    const verseNumber = shloka.number
+    const existing = bookmarks.find((b) => b.verseNumber === verseNumber)
+
+    try {
+      if (existing) {
+        const response = await authFetch(`${apiBase}/bookmarks/${encodeURIComponent(verseNumber)}`, {
+          method: 'DELETE',
+        })
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}))
+          throw new Error(err?.details || err?.message || 'Failed to remove bookmark')
+        }
+
+        setBookmarks((prev) => prev.filter((b) => b.verseNumber !== verseNumber))
+      } else {
+        const payload = {
+          verseNumber,
+          chapterNumber: chapterInfo.number,
+          chapterName: chapterInfo.name,
+          sanskrit: shloka.sanskrit,
+          transliteration: shloka.transliteration,
+          meaning: shloka.meaning,
+        }
+
+        const response = await authFetch(`${apiBase}/bookmarks`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}))
+          throw new Error(err?.details || err?.message || 'Failed to save bookmark')
+        }
+
+        const savedBookmark = await response.json()
+        setBookmarks((prev) => {
+          const withoutExisting = prev.filter((b) => b.verseNumber !== verseNumber)
+          return [...withoutExisting, savedBookmark]
+        })
+      }
+
+      window.dispatchEvent(new Event('bookmarks-updated'))
+    } catch (error) {
+      console.error('Error toggling bookmark:', error)
+      alert('Unable to update bookmark right now. Please try again.')
+    }
+  }
+
+  function playAudio(shloka: Shloka) {
+    const verseNumber = shloka.number
+
+    // If already playing this verse, stop it
+    if (playingVerse === verseNumber && audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+      setPlayingVerse(null)
+      return
+    }
+
+    // Stop any ongoing audio
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+
+    if (!shloka.audioUrl) {
+      alert('Audio not available for this verse')
+      return
+    }
+
+    // Create new audio element
+    const audio = new Audio(shloka.audioUrl)
+    audioRef.current = audio
+
+    audio.onplay = () => {
+      setPlayingVerse(verseNumber)
+    }
+
+    audio.onended = () => {
+      setPlayingVerse(null)
+      audioRef.current = null
+    }
+
+    audio.onerror = () => {
+      setPlayingVerse(null)
+      audioRef.current = null
+      alert('Unable to play audio. Audio file may not be available.')
+    }
+
+    audio.play().catch(err => {
+      console.error('Error playing audio:', err)
+      setPlayingVerse(null)
+      audioRef.current = null
     })
   }
 
@@ -137,8 +293,8 @@ export default function GitaPath() {
       <div className="gita-layout">
         {/* Chapter Nav */}
         <nav className="gita-chapters">
-          <h3>Chapters</h3>
-          {CHAPTERS.map((ch, idx) => (
+          <h3>All 18 Chapters</h3>
+          {CHAPTER_INFO.map((ch, idx) => (
             <button
               key={ch.number}
               className={`chapter-btn ${activeChapter === idx ? 'active' : ''}`}
@@ -158,38 +314,57 @@ export default function GitaPath() {
         <div className="gita-content">
           <div className="gita-content-header">
             <div>
-              <h2>Chapter {chapter.number}: {chapter.name}</h2>
-              <span className="gita-sanskrit-title">{chapter.sanskritName}</span>
+              <h2>Chapter {chapterInfo.number}: {chapterInfo.name}</h2>
+              <span className="gita-sanskrit-title">{chapterInfo.sanskritName}</span>
             </div>
+            <span className="verse-count">{chapterInfo.verseCount} verses</span>
           </div>
-          <p className="gita-chapter-summary">{chapter.summary}</p>
+          <p className="gita-chapter-summary">{chapterInfo.summary}</p>
 
-          <div className="shloka-list">
-            {chapter.shlokas.map((shloka) => (
-              <div key={shloka.number} className="shloka-card">
-                <div className="shloka-top">
-                  <span className="shloka-number">Verse {shloka.number}</span>
-                  <div className="shloka-actions">
-                    <button
-                      className={`shloka-action ${bookmarked.has(shloka.number) ? 'bookmarked' : ''}`}
-                      onClick={() => toggleBookmark(shloka.number)}
-                      title="Bookmark"
-                    >
-                      {bookmarked.has(shloka.number)
-                        ? <BookmarkCheck size={16} strokeWidth={1.5} />
-                        : <BookmarkPlus size={16} strokeWidth={1.5} />}
-                    </button>
-                    <button className="shloka-action" title="Listen">
-                      <Volume2 size={16} strokeWidth={1.5} />
-                    </button>
+          {loading ? (
+            <div className="loading-verses">
+              <Loader className="spinner" size={32} />
+              <p>Loading verses...</p>
+            </div>
+          ) : (
+            <div className="shloka-list">
+              {verses.map((shloka) => {
+                const isPlaying = playingVerse === shloka.number
+                const marked = isBookmarked(shloka.number)
+                
+                return (
+                  <div key={shloka.number} className="shloka-card">
+                    <div className="shloka-top">
+                      <span className="shloka-number">Verse {shloka.number}</span>
+                      <div className="shloka-actions">
+                        <button
+                          className={`shloka-action ${marked ? 'bookmarked' : ''}`}
+                          onClick={() => toggleBookmark(shloka)}
+                          title={marked ? 'Remove bookmark' : 'Bookmark this verse'}
+                        >
+                          {marked
+                            ? <BookmarkCheck size={16} strokeWidth={1.5} />
+                            : <BookmarkPlus size={16} strokeWidth={1.5} />}
+                        </button>
+                        <button 
+                          className={`shloka-action ${isPlaying ? 'playing' : ''}`} 
+                          onClick={() => playAudio(shloka)}
+                          title={isPlaying ? 'Stop audio' : 'Listen to Sanskrit recitation'}
+                        >
+                          {isPlaying 
+                            ? <VolumeX size={16} strokeWidth={1.5} />
+                            : <Volume2 size={16} strokeWidth={1.5} />}
+                        </button>
+                      </div>
+                    </div>
+                    <p className="shloka-sanskrit">{shloka.sanskrit}</p>
+                    <p className="shloka-transliteration">{shloka.transliteration}</p>
+                    <p className="shloka-meaning">{shloka.meaning}</p>
                   </div>
-                </div>
-                <p className="shloka-sanskrit">{shloka.sanskrit}</p>
-                <p className="shloka-transliteration">{shloka.transliteration}</p>
-                <p className="shloka-meaning">{shloka.meaning}</p>
-              </div>
-            ))}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
