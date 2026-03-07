@@ -1,0 +1,20 @@
+.chakra-loader-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.4rem;
+}
+
+.chakra-spinner {
+  color: var(--gold);
+  animation: chakraSpin 2s linear infinite;
+}
+
+.loader-text {
+  font-family: var(--font-sacred);
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--text-dim);
+  letter-spacing: 0.03em;
+  animation: sacredPulse 2s ease-in-out infinite;
+}

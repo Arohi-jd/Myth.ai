@@ -1,5 +1,9 @@
-import { createSupabaseClient } from '../lib/supabase.js';
+import { supabase } from '../lib/supabase.js';
 
+/**
+ * Alternative authentication middleware that creates a temporary Supabase client
+ * with the user's access token for verification
+ */
 export async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization || '';
@@ -10,11 +14,8 @@ export async function requireAuth(req, res, next) {
       return res.status(401).json({ message: 'Missing authorization token' });
     }
 
-    // Create a Supabase client with the user's access token
-    const supabase = createSupabaseClient(token);
-    
-    // Verify the token by getting the user
-    const { data: { user }, error } = await supabase.auth.getUser();
+    // Method 1: Try using the global supabase client
+    const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error) {
       console.error('Supabase auth error:', {

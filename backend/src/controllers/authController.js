@@ -65,12 +65,16 @@ export async function signup(req, res, next) {
         data: {
           name: name || null,
         },
+        emailRedirectTo: process.env.FRONTEND_URL,
       },
     });
 
     if (error) {
       return res.status(400).json({ message: error.message });
     }
+
+    // Check if email confirmation is required
+    const emailConfirmationRequired = !data.session && data.user?.identities?.length === 0;
 
     if (data.user) {
       await syncUserProfile({
@@ -81,9 +85,12 @@ export async function signup(req, res, next) {
     }
 
     return res.status(201).json({
-      message: 'Signup successful',
+      message: emailConfirmationRequired 
+        ? 'Signup successful! Please check your email to confirm your account before logging in.'
+        : 'Signup successful',
       user: data.user,
       session: data.session,
+      emailConfirmationRequired,
     });
   } catch (error) {
     next(error);
@@ -106,8 +113,30 @@ export async function login(req, res, next) {
     });
 
     if (error) {
+      console.error('Supabase login error:', error);
+      
+      // Handle email not confirmed error specifically
+      if (error.code === 'email_not_confirmed') {
+        return res.status(403).json({ 
+          message: 'Please confirm your email address before logging in. Check your inbox for a confirmation link.',
+          code: 'email_not_confirmed'
+        });
+      }
+      
       return res.status(401).json({ message: error.message });
     }
+
+    if (!data.session || !data.session.access_token) {
+      console.error('Login succeeded but no session/token returned:', data);
+      return res.status(500).json({ message: 'Authentication succeeded but session not created' });
+    }
+
+    console.log('Login successful:', {
+      userId: data.user?.id,
+      email: data.user?.email,
+      hasSession: !!data.session,
+      hasToken: !!data.session?.access_token
+    });
 
     if (data.user) {
       await syncUserProfile({

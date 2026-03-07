@@ -1,38 +1,132 @@
+/* ===== Divine Design System ===== */
 :root {
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* Core palette */
+  --bg-void: #020617;
+  --bg-deep: #0a0e1a;
+  --bg-cosmic: #0f172a;
+  --bg-surface: #131b2e;
+  --bg-elevated: #1a2340;
+
+  /* Gold spectrum */
+  --gold-dim: #92702a;
+  --gold: #d4a843;
+  --gold-bright: #f5c842;
+  --gold-light: #fde68a;
+  --saffron: #e8913a;
+
+  /* Accent */
+  --peacock: #0e7490;
+  --peacock-light: #22d3ee;
+  --sacred-white: #e8e2d6;
+  --text-primary: #e2ddd0;
+  --text-secondary: #8a8578;
+  --text-dim: #5c574d;
+
+  /* Borders */
+  --border-subtle: rgba(212, 168, 67, 0.12);
+  --border-glow: rgba(212, 168, 67, 0.3);
+
+  /* Typography */
+  --font-heading: 'Cinzel', 'Georgia', serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-sacred: 'Cormorant Garamond', 'Georgia', serif;
+
+  color: var(--text-primary);
+  background-color: var(--bg-void);
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
-  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 #root {
-  margin: 0 auto;
-  text-align: center;
+  width: 100%;
+  min-height: 100vh;
 }
 
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--gold-dim);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gold);
+}
+
+/* ===== Global button reset ===== */
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-subtle);
   padding: 0.6em 1.2em;
   font-size: 1em;
   font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  font-family: var(--font-body);
+  background-color: transparent;
+  color: var(--text-primary);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: all 0.3s ease;
 }
 
 button:hover {
-  border-color: #646cff;
+  border-color: var(--gold);
+  box-shadow: 0 0 15px rgba(212, 168, 67, 0.15);
 }
 
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: 1px solid var(--gold-dim);
+  outline-offset: 2px;
+}
+
+/* ===== Selection ===== */
+::selection {
+  background: rgba(212, 168, 67, 0.3);
+  color: var(--gold-light);
+}
+
+/* ===== Keyframes ===== */
+@keyframes chakraSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes sacredPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes goldenGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(212, 168, 67, 0.15); }
+  50% { box-shadow: 0 0 20px rgba(212, 168, 67, 0.3); }
+}
+
+@keyframes particleDrift {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-10vh) scale(1); opacity: 0; }
 }

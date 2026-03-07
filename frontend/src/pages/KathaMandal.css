@@ -1,0 +1,211 @@
+/* ===== Katha Mandal Page ===== */
+.katha-page {
+  margin-top: 60px;
+  min-height: calc(100vh - 60px);
+  padding: 2.5rem 2rem;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.katha-page-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.katha-page-header h1 {
+  font-family: var(--font-heading);
+  font-size: 2rem;
+  font-weight: 500;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.katha-page-header p {
+  font-family: var(--font-sacred);
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  margin: 0.4rem 0 0;
+  font-style: italic;
+}
+
+/* Grid */
+.katha-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Card */
+.katha-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 1.4rem 1.5rem 1.6rem;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(19, 27, 46, 0.4);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.katha-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.katha-card:hover {
+  border-color: var(--gold-dim);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 30px rgba(212, 168, 67, 0.08);
+}
+
+.katha-card:hover::before {
+  opacity: 1;
+}
+
+.katha-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.8rem;
+}
+
+.katha-icon {
+  color: var(--gold-dim);
+}
+
+.katha-tradition {
+  font-size: 0.7rem;
+  color: var(--peacock-light);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+}
+
+.katha-card h3 {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--gold-light);
+  margin: 0 0 0.4rem;
+  letter-spacing: 0.03em;
+}
+
+.katha-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  margin-bottom: 0.8rem;
+}
+
+.katha-preview {
+  font-family: var(--font-sacred);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  font-style: italic;
+  margin: 0;
+}
+
+.katha-scroll-edge {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  background: linear-gradient(to top, rgba(19, 27, 46, 0.6), transparent);
+  border-radius: 0 0 14px 14px;
+}
+
+/* ===== Modal ===== */
+.katha-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(2, 6, 23, 0.88);
+  backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: fadeInUp 0.3s ease;
+}
+
+.katha-modal {
+  width: 100%;
+  max-width: 700px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 2rem 2.5rem;
+  position: relative;
+}
+
+.katha-modal .modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-dim);
+  z-index: 10;
+}
+
+.katha-modal .modal-close:hover {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+  box-shadow: none;
+}
+
+.katha-scroll-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.katha-modal-tradition {
+  font-size: 0.72rem;
+  color: var(--peacock-light);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.katha-scroll-header h2 {
+  font-family: var(--font-heading);
+  font-size: 1.5rem;
+  color: var(--gold);
+  letter-spacing: 0.05em;
+  margin: 0.4rem 0 0;
+}
+
+.katha-scroll-body p {
+  font-family: var(--font-sacred);
+  font-size: 1rem;
+  color: var(--text-primary);
+  line-height: 1.85;
+  margin: 0 0 1.2rem;
+  text-align: justify;
+}
+
+.katha-scroll-body p:last-child {
+  color: var(--gold-dim);
+  font-style: italic;
+}
