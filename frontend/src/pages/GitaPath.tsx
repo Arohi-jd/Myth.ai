@@ -94,7 +94,7 @@ export default function GitaPath({ token }: GitaPathProps) {
       setLoading(true)
       try {
         // Using our own backend API
-        const response = await fetch(`/api/gita/chapters/${chapterInfo.number}/verses`)
+        const response = await fetch(`${apiBase}/gita/chapters/${chapterInfo.number}/verses`)
         
         if (!response.ok) {
           throw new Error('Failed to fetch verses')
