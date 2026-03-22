@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Send, RotateCcw } from 'lucide-react'
-import ChakraLoader from '../components/ChakraLoader'
 import { authFetch } from '../utils/authFetch'
 import './ChatPage.css'
 
@@ -49,6 +48,19 @@ export default function ChatPage({ token: _token }: ChatPageProps) {
     }
   }, [])
 
+  function updateLastAssistant(updater: (current: string) => string) {
+    setMessages((prev) => {
+      const next = [...prev]
+      for (let i = next.length - 1; i >= 0; i -= 1) {
+        if (next[i].role === 'assistant') {
+          next[i] = { ...next[i], content: updater(next[i].content) }
+          return next
+        }
+      }
+      return next
+    })
+  }
+
   async function handleSend(e: FormEvent) {
     e.preventDefault()
     const trimmed = input.trim()
@@ -58,31 +70,73 @@ export default function ChatPage({ token: _token }: ChatPageProps) {
     setTimeout(() => setSendRipple(false), 600)
 
     const userMessage: Message = { role: 'user', content: trimmed }
-    setMessages((prev) => [...prev, userMessage])
+    setMessages((prev) => [...prev, userMessage, { role: 'assistant', content: '' }])
     setInput('')
     setLoading(true)
 
     try {
-      const res = await authFetch(`${apiBase}/chat`, {
+      const res = await authFetch(`${apiBase}/chat?stream=1`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/x-ndjson',
         },
         body: JSON.stringify({ message: trimmed }),
       })
 
-      const data = await res.json()
-
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
         throw new Error(data?.message || 'Failed to get response')
       }
 
-      setMessages((prev) => [...prev, { role: 'assistant', content: data.reply }])
+      if (!res.body) {
+        const data = await res.json().catch(() => ({}))
+        updateLastAssistant(() => data?.reply || '')
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          const payload = JSON.parse(line)
+
+          if (payload.type === 'chunk') {
+            updateLastAssistant((current) => current + (payload.text || ''))
+          } else if (payload.type === 'done') {
+            if (typeof payload.reply === 'string') {
+              updateLastAssistant(() => payload.reply)
+            }
+          } else if (payload.type === 'error') {
+            throw new Error(payload.message || 'Failed to get response')
+          }
+        }
+      }
+
+      if (buffer.trim()) {
+        const payload = JSON.parse(buffer)
+        if (payload.type === 'chunk') {
+          updateLastAssistant((current) => current + (payload.text || ''))
+        }
+      }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'An unknown disturbance occurred'
       setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: `The ancient channels are disturbed. ${errMsg}. Please try again.` },
+        ...prev.slice(0, -1),
+        {
+          role: 'assistant',
+          content: `The ancient channels are disturbed. ${errMsg}. Please try again.`,
+        },
       ])
     } finally {
       setLoading(false)
@@ -161,18 +215,6 @@ export default function ChatPage({ token: _token }: ChatPageProps) {
                 </div>
               </div>
             ))}
-
-            {loading && (
-              <div className="chat-bubble bubble-assistant">
-                <div className="avatar-divine">
-                  <svg viewBox="0 0 100 100" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="50" cy="50" r="40" strokeOpacity="0.5" />
-                    <circle cx="50" cy="50" r="6" fill="currentColor" fillOpacity="0.7" stroke="none" />
-                  </svg>
-                </div>
-                <ChakraLoader />
-              </div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>
