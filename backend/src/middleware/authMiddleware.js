@@ -1,5 +1,38 @@
 import { createSupabaseClient } from '../lib/supabase.js';
 
+const AUTH_CACHE_TTL_MS = 90 * 1000;
+const AUTH_CACHE_MAX_ITEMS = 2000;
+const authCache = new Map();
+
+function getCachedUser(token) {
+  const cached = authCache.get(token);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    authCache.delete(token);
+    return null;
+  }
+  return cached.user;
+}
+
+function setCachedUser(token, user) {
+  authCache.set(token, { user, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+
+  if (authCache.size > AUTH_CACHE_MAX_ITEMS) {
+    const now = Date.now();
+    for (const [key, value] of authCache.entries()) {
+      if (value.expiresAt <= now) {
+        authCache.delete(key);
+      }
+    }
+
+    // If still large, trim oldest entry.
+    if (authCache.size > AUTH_CACHE_MAX_ITEMS) {
+      const firstKey = authCache.keys().next().value;
+      if (firstKey) authCache.delete(firstKey);
+    }
+  }
+}
+
 export async function requireAuth(req, res, next) {
   try {
     const authHeader = req.headers.authorization || '';
@@ -8,6 +41,13 @@ export async function requireAuth(req, res, next) {
     if (!token) {
       console.error('Auth failed: No token provided');
       return res.status(401).json({ message: 'Missing authorization token' });
+    }
+
+    const cachedUser = getCachedUser(token);
+    if (cachedUser) {
+      req.user = cachedUser;
+      req.accessToken = token;
+      return next();
     }
 
     // Create a Supabase client with the user's access token
@@ -22,6 +62,7 @@ export async function requireAuth(req, res, next) {
         status: error.status,
         code: error.code
       });
+      authCache.delete(token);
       return res.status(401).json({ 
         message: 'Invalid or expired token',
         details: error.message 
@@ -33,7 +74,7 @@ export async function requireAuth(req, res, next) {
       return res.status(401).json({ message: 'Invalid token - no user data' });
     }
 
-    console.log('✓ Auth successful for user:', user.id, user.email);
+    setCachedUser(token, user);
     req.user = user;
     req.accessToken = token;
     next();

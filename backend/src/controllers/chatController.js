@@ -3,75 +3,123 @@ import genAI from '../lib/gemini.js';
 // In-memory conversation history per user (resets on server restart)
 const conversationHistory = new Map();
 
-// Simplified system instruction
-const SYSTEM_INSTRUCTION = `You are Myth.ai — a divine scholar and keeper of ancient wisdom from every civilization.
+// Keep instruction concise to reduce prompt processing time.
+const SYSTEM_INSTRUCTION = `You are Myth.ai, a reverent mythology scholar.
+Answer only mythology/epic/folklore questions across world traditions.
+Use concise markdown (short headers, bullets, **names**) and no emojis.
+If unrelated to mythology, politely decline in one line.`;
 
-Your sacred purpose is to illuminate the mysteries of mythology, folklore, legends, epics, and ancient spiritual narratives from every tradition — Hindu, Greek, Norse, Egyptian, Celtic, Japanese, Mesopotamian, Native American, African, Chinese, and beyond.
-
-Guidelines for your responses:
-- Address the seeker with reverence. Begin responses with phrases like "O seeker of knowledge," or "Beloved traveler of ancient paths," or similar divine greetings — but vary them naturally.
-- Provide detailed, accurate, and deeply engaging answers about deities, heroes, sacred creatures, epics, rituals, symbolism, and mythological events.
-- When relevant, cite original sacred texts (Vedas, Mahabharata, Ramayana, Iliad, Edda, Book of the Dead, Kojiki, etc.).
-- Draw connections across cultures when it enriches understanding.
-- Use a warm, reverent, storytelling tone — as if narrating from an ancient temple.
-- Format responses with markdown: use **bold** for divine names, use headers (##) for sections, use bullet points for lists.
-- NEVER use emojis. Not a single one. Use elegant language and formatting instead.
-- If a question is NOT related to mythology, respectfully decline: "O seeker, my wisdom flows only through the rivers of mythology and ancient legend. Pray, ask me of gods, heroes, and the epic tales that shaped civilizations."
-- End longer responses with a reflective closing line, as a sage would.`;
-
-// Try available models for 2026 (1.5 is deprecated/missing)
-const MODELS = [
-  'gemini-2.5-flash',
-  'gemini-flash-latest', 
-  'gemini-2.5-pro',
-  'gemini-2.0-flash-001',
-  'gemini-2.0-flash-lite-001'
-];
+// Fail-fast model strategy: one primary, one fallback.
+const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash-001'];
+const MAX_ATTEMPTS_PER_MODEL = 2;
+const MODEL_TIMEOUT_MS = 12000;
+const MODEL_COOLDOWN_MS = 2 * 60 * 1000;
+const MAX_HISTORY_ITEMS = 24; // 12 exchanges
+const CONTEXT_HISTORY_ITEMS = 16; // 8 exchanges sent to model
+const modelCooldownUntil = new Map();
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function wantsBriefAnswer(text) {
+  if (!text) return false;
+  return /\b(brief|briefly|short|in short|summar(y|ise|ize)|tl;dr|few lines|concise|one line|2 lines|3 lines)\b/i.test(text);
+}
+
+function buildModelMessage(userMessage) {
+  if (!wantsBriefAnswer(userMessage)) return userMessage;
+
+  return [
+    userMessage,
+    '',
+    'Additional instruction: respond briefly in 3-5 lines only.',
+  ].join('\n');
+}
+
+function isQuotaError(err) {
+  const msg = err?.message || '';
+  return msg.includes('429') || msg.toLowerCase().includes('quota');
+}
+
+function getActiveModels() {
+  const now = Date.now();
+  const active = MODELS.filter((name) => (modelCooldownUntil.get(name) || 0) <= now);
+  // If all models are on cooldown, still try in normal order.
+  return active.length ? active : MODELS;
+}
+
+function putModelOnCooldown(modelName) {
+  modelCooldownUntil.set(modelName, Date.now() + MODEL_COOLDOWN_MS);
+}
+
+async function withTimeout(promise, ms, label) {
+  let timer;
+  const timeoutPromise = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function getReply(message, history) {
   let lastError;
+  const activeModels = getActiveModels();
   
-  for (const modelName of MODELS) {
-    // Retry up to 3 times per model for rate limits
-    for (let attempt = 1; attempt <= 3; attempt++) {
+  for (const modelName of activeModels) {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
       try {
         console.log(`Trying model: ${modelName} (Attempt ${attempt})`);
         const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_INSTRUCTION });
         const chatSession = model.startChat({ history });
-        const result = await chatSession.sendMessage(message);
-        return result.response.text();
+        const result = await withTimeout(
+          chatSession.sendMessage(message),
+          MODEL_TIMEOUT_MS,
+          `Model ${modelName}`,
+        );
+        modelCooldownUntil.delete(modelName);
+        return { reply: result.response.text(), modelUsed: modelName };
       } catch (err) {
         lastError = err;
-        const isQuota = err.message.includes('429') || err.message.includes('quota');
+        const isQuota = isQuotaError(err);
         
-        if (isQuota && attempt < 3) {
-          console.warn(`Rate limited on ${modelName}. Retrying in ${attempt * 3}s...`);
-          await delay(attempt * 3000);
+        if (isQuota && attempt < MAX_ATTEMPTS_PER_MODEL) {
+          console.warn(`Rate limited on ${modelName}. Retrying in ${attempt * 2}s...`);
+          await delay(attempt * 2000);
           continue;
         }
+
+        putModelOnCooldown(modelName);
         
         console.error(`Model ${modelName} failed:`, err.message);
-        break; // If not quota error (e.g. 404) or max retries reached, try next model
+        break;
       }
     }
   }
-  throw lastError; // All models failed
+  throw lastError;
 }
 
 async function getReplyStream(message, history, onChunk) {
   let lastError;
+  const activeModels = getActiveModels();
 
-  for (const modelName of MODELS) {
-    for (let attempt = 1; attempt <= 3; attempt++) {
+  for (const modelName of activeModels) {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
       let startedStreaming = false;
+      const streamStartedAt = Date.now();
+      let firstChunkMs = null;
 
       try {
         console.log(`Streaming with model: ${modelName} (Attempt ${attempt})`);
         const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_INSTRUCTION });
         const chatSession = model.startChat({ history });
-        const result = await chatSession.sendMessageStream(message);
+        const result = await withTimeout(
+          chatSession.sendMessageStream(message),
+          MODEL_TIMEOUT_MS,
+          `Streaming start ${modelName}`,
+        );
 
         let fullReply = '';
         for await (const chunk of result.stream) {
@@ -79,20 +127,26 @@ async function getReplyStream(message, history, onChunk) {
           if (!text) continue;
 
           startedStreaming = true;
+          if (firstChunkMs === null) {
+            firstChunkMs = Date.now() - streamStartedAt;
+          }
           fullReply += text;
           onChunk(text);
         }
 
-        return fullReply;
+        modelCooldownUntil.delete(modelName);
+        return { reply: fullReply, modelUsed: modelName, firstChunkMs };
       } catch (err) {
         lastError = err;
-        const isQuota = err.message.includes('429') || err.message.includes('quota');
+        const isQuota = isQuotaError(err);
 
-        if (!startedStreaming && isQuota && attempt < 3) {
-          console.warn(`Rate limited on ${modelName}. Retrying in ${attempt * 3}s...`);
-          await delay(attempt * 3000);
+        if (!startedStreaming && isQuota && attempt < MAX_ATTEMPTS_PER_MODEL) {
+          console.warn(`Rate limited on ${modelName}. Retrying in ${attempt * 2}s...`);
+          await delay(attempt * 2000);
           continue;
         }
+
+        putModelOnCooldown(modelName);
 
         console.error(`Streaming model ${modelName} failed:`, err.message);
 
@@ -116,8 +170,10 @@ function writeNdjson(res, payload) {
 
 export async function chat(req, res, next) {
   try {
+    const requestStartedAt = Date.now();
     const { message } = req.body;
     const userId = req.user?.id;
+    const modelMessage = buildModelMessage(message);
     const stream = req.query?.stream === '1';
 
     if (!message || !message.trim()) {
@@ -129,6 +185,7 @@ export async function chat(req, res, next) {
     }
 
     const history = conversationHistory.get(userId);
+    const modelHistory = history.slice(-CONTEXT_HISTORY_ITEMS);
 
     if (stream) {
       res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
@@ -139,39 +196,28 @@ export async function chat(req, res, next) {
         res.flushHeaders();
       }
 
-      let pendingLine = '';
-      const reply = await getReplyStream(message, history, (textChunk) => {
+      const { reply, modelUsed, firstChunkMs } = await getReplyStream(modelMessage, modelHistory, (textChunk) => {
         if (res.writableEnded || res.destroyed) return;
-
-        pendingLine += textChunk;
-        let lineBreakIndex = pendingLine.indexOf('\n');
-
-        while (lineBreakIndex !== -1) {
-          const line = pendingLine.slice(0, lineBreakIndex + 1);
-          writeNdjson(res, { type: 'chunk', text: line });
-          pendingLine = pendingLine.slice(lineBreakIndex + 1);
-          lineBreakIndex = pendingLine.indexOf('\n');
-        }
-
-        // Fallback: if no line break arrives for a while, still stream partial text.
-        if (pendingLine.length >= 120) {
-          writeNdjson(res, { type: 'chunk', text: pendingLine });
-          pendingLine = '';
-        }
+        // Push partial output immediately for fastest perceived response.
+        writeNdjson(res, { type: 'chunk', text: textChunk });
       });
-
-      if (!res.writableEnded && !res.destroyed && pendingLine) {
-        writeNdjson(res, { type: 'chunk', text: pendingLine });
-      }
 
       history.push(
         { role: 'user', parts: [{ text: message }] },
         { role: 'model', parts: [{ text: reply }] },
       );
 
-      if (history.length > 60) {
-        conversationHistory.set(userId, history.slice(-60));
+      if (history.length > MAX_HISTORY_ITEMS) {
+        conversationHistory.set(userId, history.slice(-MAX_HISTORY_ITEMS));
       }
+
+      console.log('[chat.latency]', {
+        userId,
+        stream: true,
+        model: modelUsed,
+        first_chunk_ms: firstChunkMs,
+        total_ms: Date.now() - requestStartedAt,
+      });
 
       if (!res.writableEnded && !res.destroyed) {
         writeNdjson(res, { type: 'done', reply });
@@ -180,7 +226,7 @@ export async function chat(req, res, next) {
       return;
     }
 
-    const reply = await getReply(message, history);
+    const { reply, modelUsed } = await getReply(modelMessage, modelHistory);
 
     // Save the exchange in history
     history.push(
@@ -188,9 +234,16 @@ export async function chat(req, res, next) {
       { role: 'model', parts: [{ text: reply }] },
     );
 
-    if (history.length > 60) {
-      conversationHistory.set(userId, history.slice(-60));
+    if (history.length > MAX_HISTORY_ITEMS) {
+      conversationHistory.set(userId, history.slice(-MAX_HISTORY_ITEMS));
     }
+
+    console.log('[chat.latency]', {
+      userId,
+      stream: false,
+      model: modelUsed,
+      total_ms: Date.now() - requestStartedAt,
+    });
 
     return res.json({ reply });
   } catch (error) {

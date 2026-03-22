@@ -98,6 +98,23 @@ export default function ChatPage({ token: _token }: ChatPageProps) {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      let queuedText = ''
+      let flushTimer: number | undefined
+
+      const flushQueuedText = () => {
+        if (!queuedText) return
+        const text = queuedText
+        queuedText = ''
+        updateLastAssistant((current) => current + text)
+      }
+
+      const scheduleFlush = () => {
+        if (flushTimer !== undefined) return
+        flushTimer = window.setTimeout(() => {
+          flushTimer = undefined
+          flushQueuedText()
+        }, 45)
+      }
 
       while (true) {
         const { done, value } = await reader.read()
@@ -112,8 +129,14 @@ export default function ChatPage({ token: _token }: ChatPageProps) {
           const payload = JSON.parse(line)
 
           if (payload.type === 'chunk') {
-            updateLastAssistant((current) => current + (payload.text || ''))
+            queuedText += payload.text || ''
+            scheduleFlush()
           } else if (payload.type === 'done') {
+            if (flushTimer !== undefined) {
+              window.clearTimeout(flushTimer)
+              flushTimer = undefined
+            }
+            flushQueuedText()
             if (typeof payload.reply === 'string') {
               updateLastAssistant(() => payload.reply)
             }
@@ -126,9 +149,15 @@ export default function ChatPage({ token: _token }: ChatPageProps) {
       if (buffer.trim()) {
         const payload = JSON.parse(buffer)
         if (payload.type === 'chunk') {
-          updateLastAssistant((current) => current + (payload.text || ''))
+          queuedText += payload.text || ''
         }
       }
+
+      if (flushTimer !== undefined) {
+        window.clearTimeout(flushTimer)
+        flushTimer = undefined
+      }
+      flushQueuedText()
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : 'An unknown disturbance occurred'
       setMessages((prev) => [
