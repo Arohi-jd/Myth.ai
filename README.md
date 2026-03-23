@@ -9,7 +9,8 @@ Myth.ai is a full-stack AI-powered web application that lets you converse with a
 ## ✨ Features
 
 ### 🗣️ AI Chat Interface
-- Conversational Q&A powered by **Google Gemini AI**
+
+- Conversational Q&A powered by **Groq LLM API**
 - Ask questions about mythology from 10+ world traditions: Hindu, Greek, Norse, Egyptian, Celtic, Japanese, Mesopotamian, Native American, African, and Chinese
 - Per-user conversation history maintained across the session
 - Reverent, scholarly tone — no emojis, rich mythological detail
@@ -55,7 +56,7 @@ Myth.ai is a full-stack AI-powered web application that lets you converse with a
 | **ORM** | Prisma 6 |
 | **Database** | PostgreSQL (Supabase) |
 | **Auth** | Supabase Auth (email + Google OAuth) |
-| **AI** | Google Generative AI (Gemini) |
+| **AI** | Groq API |
 | **Web Scraping** | Cheerio (fallback for Gita verses) |
 | **Deployment** | Render (backend), Vercel (frontend) |
 
@@ -68,7 +69,7 @@ Myth.ai is a full-stack AI-powered web application that lets you converse with a
 - **Node.js** v18 or later
 - **npm** v9 or later
 - A [Supabase](https://supabase.com) project (free tier works)
-- A [Google AI Studio](https://aistudio.google.com) API key for Gemini
+- A [Groq Console](https://console.groq.com) API key
 
 ### 1. Clone the repository
 
@@ -92,8 +93,8 @@ SUPABASE_ANON_KEY=<your-supabase-anon-key>
 # PostgreSQL (Supabase connection string)
 DATABASE_URL=postgresql://postgres:<password>@db.<your-project-ref>.supabase.co:5432/postgres?schema=public
 
-# Google Gemini
-GEMINI_API_KEY=<your-gemini-api-key>
+# Groq
+GROQ_API_KEY=<your-groq-api-key>
 
 # CORS — URL where your frontend runs
 FRONTEND_URL=http://localhost:3000
@@ -162,13 +163,13 @@ Myth.ai/
 │   └── src/
 │       ├── controllers/
 │       │   ├── authController.js  # Signup, login, Google OAuth, token refresh
-│       │   ├── chatController.js  # Gemini AI chat with conversation history
+│       │   ├── chatController.js  # Groq AI chat with conversation history
 │       │   ├── gitaController.js  # Gita chapter & verse retrieval
 │       │   └── bookmarkController.js  # Bookmark CRUD
 │       ├── data/
 │       │   └── gitaVerses.js      # All 700 verses (local fallback dataset)
 │       ├── lib/
-│       │   ├── gemini.js          # Google Generative AI client
+│       │   ├── groq.js            # Groq API client
 │       │   ├── supabase.js        # Supabase client
 │       │   ├── prisma.js          # Prisma client
 │       │   └── gitaScraper.js     # Web scraper fallback for verses
@@ -268,7 +269,7 @@ Myth.ai/
 | `SUPABASE_URL` | Your Supabase URL |
 | `SUPABASE_ANON_KEY` | Your Supabase anon key |
 | `DATABASE_URL` | Your Supabase PostgreSQL URL |
-| `GEMINI_API_KEY` | Your Google Gemini API key |
+| `GROQ_API_KEY` | Your Groq API key |
 | `FRONTEND_URL` | Your deployed frontend URL |
 
 ### Frontend — Vercel

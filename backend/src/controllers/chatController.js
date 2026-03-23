@@ -1,4 +1,4 @@
-import genAI from '../lib/gemini.js';
+import groq from '../lib/groq.js';
 
 // In-memory conversation history per user (resets on server restart)
 const conversationHistory = new Map();
@@ -10,12 +10,13 @@ Use concise markdown (short headers, bullets, **names**) and no emojis.
 If unrelated to mythology, politely decline in one line.`;
 
 // Fail-fast model strategy: one primary, one fallback.
-const MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash-001'];
+const MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
 const MAX_ATTEMPTS_PER_MODEL = 2;
 const MODEL_TIMEOUT_MS = 12000;
 const MODEL_COOLDOWN_MS = 2 * 60 * 1000;
 const MAX_HISTORY_ITEMS = 24; // 12 exchanges
 const CONTEXT_HISTORY_ITEMS = 16; // 8 exchanges sent to model
+const MAX_COMPLETION_TOKENS = 700;
 const modelCooldownUntil = new Map();
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -36,8 +37,13 @@ function buildModelMessage(userMessage) {
 }
 
 function isQuotaError(err) {
-  const msg = err?.message || '';
-  return msg.includes('429') || msg.toLowerCase().includes('quota');
+  const msg = (err?.message || '').toLowerCase();
+  return (
+    msg.includes('429') ||
+    msg.includes('quota') ||
+    msg.includes('rate limit') ||
+    msg.includes('too many requests')
+  );
 }
 
 function getActiveModels() {
@@ -49,6 +55,14 @@ function getActiveModels() {
 
 function putModelOnCooldown(modelName) {
   modelCooldownUntil.set(modelName, Date.now() + MODEL_COOLDOWN_MS);
+}
+
+function buildGroqMessages(message, history) {
+  return [
+    { role: 'system', content: SYSTEM_INSTRUCTION },
+    ...history,
+    { role: 'user', content: message },
+  ];
 }
 
 async function withTimeout(promise, ms, label) {
@@ -72,15 +86,24 @@ async function getReply(message, history) {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
       try {
         console.log(`Trying model: ${modelName} (Attempt ${attempt})`);
-        const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_INSTRUCTION });
-        const chatSession = model.startChat({ history });
-        const result = await withTimeout(
-          chatSession.sendMessage(message),
+        const completion = await withTimeout(
+          groq.chat.completions.create({
+            model: modelName,
+            messages: buildGroqMessages(message, history),
+            temperature: 0.4,
+            max_completion_tokens: MAX_COMPLETION_TOKENS,
+          }),
           MODEL_TIMEOUT_MS,
           `Model ${modelName}`,
         );
+
+        const reply = completion?.choices?.[0]?.message?.content?.trim();
+        if (!reply) {
+          throw new Error(`Empty response from model ${modelName}`);
+        }
+
         modelCooldownUntil.delete(modelName);
-        return { reply: result.response.text(), modelUsed: modelName };
+        return { reply, modelUsed: modelName };
       } catch (err) {
         lastError = err;
         const isQuota = isQuotaError(err);
@@ -113,17 +136,21 @@ async function getReplyStream(message, history, onChunk) {
 
       try {
         console.log(`Streaming with model: ${modelName} (Attempt ${attempt})`);
-        const model = genAI.getGenerativeModel({ model: modelName, systemInstruction: SYSTEM_INSTRUCTION });
-        const chatSession = model.startChat({ history });
-        const result = await withTimeout(
-          chatSession.sendMessageStream(message),
+        const stream = await withTimeout(
+          groq.chat.completions.create({
+            model: modelName,
+            messages: buildGroqMessages(message, history),
+            temperature: 0.4,
+            max_completion_tokens: MAX_COMPLETION_TOKENS,
+            stream: true,
+          }),
           MODEL_TIMEOUT_MS,
           `Streaming start ${modelName}`,
         );
 
         let fullReply = '';
-        for await (const chunk of result.stream) {
-          const text = chunk?.text?.() || '';
+        for await (const chunk of stream) {
+          const text = chunk?.choices?.[0]?.delta?.content || '';
           if (!text) continue;
 
           startedStreaming = true;
@@ -135,6 +162,10 @@ async function getReplyStream(message, history, onChunk) {
         }
 
         modelCooldownUntil.delete(modelName);
+        if (!fullReply.trim()) {
+          throw new Error(`Empty streamed response from model ${modelName}`);
+        }
+
         return { reply: fullReply, modelUsed: modelName, firstChunkMs };
       } catch (err) {
         lastError = err;
@@ -170,6 +201,10 @@ function writeNdjson(res, payload) {
 
 export async function chat(req, res, next) {
   try {
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(500).json({ message: 'GROQ_API_KEY is not configured on the server' });
+    }
+
     const requestStartedAt = Date.now();
     const { message } = req.body;
     const userId = req.user?.id;
@@ -203,8 +238,8 @@ export async function chat(req, res, next) {
       });
 
       history.push(
-        { role: 'user', parts: [{ text: message }] },
-        { role: 'model', parts: [{ text: reply }] },
+        { role: 'user', content: message },
+        { role: 'assistant', content: reply },
       );
 
       if (history.length > MAX_HISTORY_ITEMS) {
@@ -230,8 +265,8 @@ export async function chat(req, res, next) {
 
     // Save the exchange in history
     history.push(
-      { role: 'user', parts: [{ text: message }] },
-      { role: 'model', parts: [{ text: reply }] },
+      { role: 'user', content: message },
+      { role: 'assistant', content: reply },
     );
 
     if (history.length > MAX_HISTORY_ITEMS) {
@@ -247,7 +282,7 @@ export async function chat(req, res, next) {
 
     return res.json({ reply });
   } catch (error) {
-    console.error('All Gemini models failed:', error);
+    console.error('All Groq models failed:', error);
     const isQuota = error?.message?.includes('429') || error?.message?.includes('quota');
 
     if (req.query?.stream === '1') {
