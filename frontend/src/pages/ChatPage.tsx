@@ -252,6 +252,11 @@ export default function ChatPage({ token: _token }: ChatPageProps) {
 
       {/* Input bar pinned at bottom */}
       <form className={`chat-input-bar ${sendRipple ? 'ripple' : ''}`} onSubmit={handleSend}>
+        {loading && (
+          <p className="render-sleep-note">
+            <span className="render-sleep-badge">⏳ Please wait:</span> Because this app runs on Render free tier, the first response can take a little time while the server wakes up.
+          </p>
+        )}
         <div className="input-stone">
           <input
             type="text"
