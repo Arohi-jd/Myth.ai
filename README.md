@@ -298,11 +298,6 @@ Contributions are welcome! Please follow these steps:
 
 ---
 
-## 📄 License
-
-This project is open-source. See the repository for license details.
-
----
 
 <div align="center">
   <p>Built with ❤️ and devotion to ancient wisdom</p>
